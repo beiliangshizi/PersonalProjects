@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Vue Todo Tutorial</title>
+    <script src="https://cdn.bootcss.com/vue/2.5.16/vue.js"></script>
+</head>
+<body>
+<div id="app">
+  <input type="text" v-model="value">
+  <input type="button" value="发送" v-on:click='send'>
+  <div>value 的值是：{{ value }}</div>
+</div>
+</body>
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: function () {
+            return {value: ''}
+        },
+        // 这是新增的方法
+        methods: {
+            send: function () {
+                alert('发送成功！');
+                this.value = ''
+            }
+        }
+    })
+</script>
+</html>

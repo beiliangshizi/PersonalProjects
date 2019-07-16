@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Vue Todo</title>
+  <script src="https://cdn.bootcss.com/vue/2.5.16/vue.js"></script>
+  <style>
+    .completed {
+      text-decoration: line-through;
+    }
+
+    .selected {
+      color: red;
+    }
+
+    .empty {
+      border-color: red;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="todo-app">
+    <div>
+      <input v-if="leftTodosCount" type="button" value="全部标为完成" @click="markAllAsCompleted" />
+      <input type="text" v-bind:class='{empty: emptyChecked}' placeholder="添加 todo" v-model="newTodoTitle"
+        @keyup.enter="addTodo" />
+
+    </div>
+    <!-- todo list -->
+    <divitem v-if="hasRemovedTodo">
+      <br>
+      <input type="button" value="撤销" @click="restoreTodo()" />
+    </divitem>
+    <ul>
+      <li v-for='item in filteredTodos' :key='item.id'>
+        <span :class="{completed: item.completed}" @dblclick="editTodo(item)">{{item.title}}</span>
+        <input v-if="!item.completed" type="button" value="标为完成" @click='markAsCompleted(item)'>
+        <input v-else type="button" value="标为未完成" @click="markAsUncompleted(item)" />
+        <input v-if="item.removed" type="button" value="还原" @click='restoreTodo(item)' />
+        <input v-else="item.removed" type="button" value="删除" @click='removeTodo(item)' />
+        <input v-if="editedTodo!==null && editedTodo.id===item.id" v-focus="true" type="text" value="编辑 todo..."
+          v-model="item.title" @keyup.enter="editDone(item)" @keyup.esc="cancelEdit(item)" />
+      </li>
+    </ul>
+    <!-- end todo list -->
+    <div>
+      <span v-if="leftTodosCount">剩余{{leftTodosCount}}项未完成 ---</span>
+      <span v-else-if="completedTodosCount">全部完成，你真是太优秀了！</span>
+      <span v-else>添加我的第一个todo</span>
+      <span v-if="todos.length || recycleBin.length">筛选：
+        <input v-if="recycleBin.length" type="button" value="回收站" @click="intention='removed'" />
+
+        <input type="button" value="全部" @click="intention='all'" v-bind:class="{selected: intention==='all'}">
+        <input v-if="leftTodosCount" type="button" value="进行中" @click="intention='ongoing'"
+          v-bind:class="{selected: intention==='ongoing'}">
+        <input v-if="completedTodosCount" type="button" value="已完成" @click="intention='completed'"
+          v-bind:class="{selected: intention==='completed'}">
+        <input v-if="completedTodosCount" type="button" value="清除已完成" @click="clearCompleted">
+        <input type="button" value="清除全部" @click="clearAll">
+      </span>
+    </div>
+  </div>
+</body>
+<script>
+  let id = 0;
+  var app = new Vue({
+    el: '#todo-app',
+    data: function () {
+      return {
+        todos: [],
+        newTodoTitle: '',
+        checkEmpty: false, // 增加一个检查空值标志
+        editedTodo: null, // 用于暂存编辑前的 todo 状态
+        removedTodo: null, //用于暂存删除的todo元素及位置 
+        intention: 'all', //用户的意图：all：想查看全部 todo；ongoing：想查看未完成的 todo；completed：想查看已完成的 todo
+        recycleBin: [], // 用于存放已经删除的 todo
+      }
+    },
+    computed: {
+      emptyChecked: function () {
+        return this.newTodoTitle.length === 0 && this.checkEmpty
+      },
+      leftTodosCount: function () {
+        return this.todos.filter(todo => !todo.completed).length
+      },
+      hasRemovedTodo: function () {
+        return !!this.removedTodo
+      },
+      completedTodos: function () {
+        return this.todos.filter(todo => todo.completed)
+      },
+      completedTodosCount: function () {
+        return this.completedTodos.length
+      },
+      leftTodos: function () {
+        return this.todos.length - this.completedTodosCount
+      },
+      filteredTodos: function () {
+        if (this.intention === 'ongoing') {
+          return this.leftTodos
+        } else if (this.intention === 'completed') {
+          return this.completedTodos
+        } else if (this.intention === 'removed') {
+          return this.recycleBin
+        } else {
+          // 其它未定义的意图我们为其返回全部 todos，
+          // 这里面已经包含了 all 意图了
+          return this.todos
+        }
+      },
+
+    },
+    methods: {
+      addTodo: function () {
+        if (this.newTodoTitle === '') {
+          this.checkEmpty = true;
+          return
+        }
+        this.todos.push({ id: id++, title: this.newTodoTitle, completed: false, removed: false });
+        this.newTodoTitle = '';
+        this.checkEmpty = false;
+      },
+      markAsCompleted: function (item) {
+        item.completed = true
+      },
+      markAsUncompleted: function (item) {
+        item.completed = false
+      },
+      removeTodo: function (item) {
+        // if (!confirm('确认删除？')) {
+        //   return
+        // }
+        // this.todos.spliciteme(this.todos.indexOf(item), 1)
+
+        // let pos = this.todos.indexOf(item);
+        // this.removedTodo = {
+        //   pos: pos,
+        //   todo: this.todos.splice(pos, 1)[0]
+        // }
+
+        let removedTodo = this.todos.splice(this.todos.indexOf(item), 1)[0];
+        removedTodo.removed = true;
+        this.recycleBin.unshift(removedTodo);
+      },
+      restoreTodo: function (item) {
+        // let pos = this.removedTodo.pos;
+        // let restored = this.removedTodo.todo;
+        // this.todos.splice(pos, 0, restored);
+        // this.removedTodo = null;
+        item.removed = false;
+        this.todos.unshift(item);
+        let pos = this.recycleBin.indexOf(item);
+        this.recycleBin.splice(pos, 1);
+      },
+      editTodo: function (item) {
+        this.editedTodo = { id: item.id, title: item.title, completed: item.completed }
+      },
+      editDone: function (item) {
+        if (item.title === '') {
+          this.removeTodo(item)
+        }
+        this.editedTodo = null
+      },
+      cancelEdit: function (item) {
+        item.title = this.editedTodo.title;
+        this.editedTodo = null
+      },
+      markAllAsCompleted: function () {
+        this.todos.map(function (item) {
+          if (!item.completed) {
+            item.completed = true
+          }
+        })
+        // todo => todo.completed = true
+      },
+      // clearCompleted: function () {
+      //   this.todos = this.todos.filter(item => !item.completed)
+      // },
+      // clearAll: function () {
+      //   this.todos = []
+      // },
+      clearCompleted: function () {
+        if (!confirm('确认清除全部已完成的待办事项？')) {
+          return
+        }
+        // this.todos = this.todos.filter(todo => !todo.completed)
+
+        this.completedTodos.map(todo => todo.removed = true);
+        this.recycleBin.unshift(...this.completedTodos);
+        this.todos = this.leftTodos;
+      },
+      clearAll: function () {
+        if (!confirm('确认清除全部待办事项？')) {
+          return
+        }
+        // this.todos = []
+        this.todos.map(todo => todo.removed = true);
+        this.recycleBin.unshift(...this.todos);
+        this.todos = [];
+      }
+    },
+    directives: {
+      focus: {
+        inserted: function (el) {
+          el.focus()
+        }
+      }
+    }
+  })
+</script>
+
+</html>
